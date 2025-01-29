@@ -19,6 +19,8 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+#include "spi.h"
+#include "tim.h"
 #include "usart.h"
 #include "gpio.h"
 
@@ -44,7 +46,8 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
-
+#define COUNTER_PERIOD 60000
+#define MAX_ADC 1023
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -87,7 +90,18 @@ int main(void)
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   MX_USART2_UART_Init();
+  MX_SPI1_Init();
+  MX_TIM1_Init();
   /* USER CODE BEGIN 2 */
+
+
+
+  // The transmit buffer includes start bit, the bit to select channel 0 on single end, and the dont care bits, refer to figure 6-1
+  uint8_t tx_buff[3] = {0b1, 0b10000000, 0};
+  // The receive buffer is empty until we receive the data
+  uint8_t rx_buff[3] = {0, 0, 0};
+
+  HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1);
 
   /* USER CODE END 2 */
 
@@ -96,8 +110,28 @@ int main(void)
   while (1)
   {
     /* USER CODE END WHILE */
-
     /* USER CODE BEGIN 3 */
+
+	// Since chip select is active low we set it to low
+	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_8, GPIO_PIN_RESET);
+
+	// now transmit data and receive the 10 bits
+	HAL_SPI_TransmitReceive(&hspi1, tx_buff, rx_buff, 3, HAL_MAX_DELAY);
+
+	// Calculate the count needed, the SPI max signal is 10 bits so the max value is 2047
+	uint16_t pot_input = ((rx_buff[1] & 0b11) << 8) | (rx_buff[2]);
+
+	float duty_cycle = 0.05 + 0.05 * (pot_input/MAX_ADC);
+
+	// Calculate the steps active for the pwm control
+	uint16_t steps_active = duty_cycle * COUNTER_PERIOD;
+
+	// Set the pwm output to the motor
+	__HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_1, steps_active);
+
+	HAL_Delay(10);
+
+
   }
   /* USER CODE END 3 */
 }
