@@ -46,7 +46,10 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
-#define COUNTER_PERIOD 60000
+
+// We choose a prescaler of 14 so that we can have a higher resolution in our duty cycle
+#define COUNTER_PERIOD 64000
+
 #define MAX_ADC 1023
 /* USER CODE END PV */
 
@@ -97,11 +100,13 @@ int main(void)
 
 
   // The transmit buffer includes start bit, the bit to select channel 0 on single end, and the dont care bits, refer to figure 6-1
-  uint8_t tx_buff[3] = {0b1, 0b10000000, 0};
+  uint8_t tx_buff[3] = {0x1, 0x80, 0x0};
   // The receive buffer is empty until we receive the data
   uint8_t rx_buff[3] = {0, 0, 0};
 
   HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1);
+  __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_1, steps_active); 
+  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_8, GPIO_PIN_SET); 
 
   /* USER CODE END 2 */
 
@@ -118,13 +123,13 @@ int main(void)
 	// now transmit data and receive the 10 bits
 	HAL_SPI_TransmitReceive(&hspi1, tx_buff, rx_buff, 3, HAL_MAX_DELAY);
 
+	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_8, GPIO_PIN_SET); // Set cs to high again
+
 	// Calculate the count needed, the SPI max signal is 10 bits so the max value is 2047
 	uint16_t pot_input = ((rx_buff[1] & 0b11) << 8) | (rx_buff[2]);
 
-	float duty_cycle = 0.05 + 0.05 * (pot_input/MAX_ADC);
-
 	// Calculate the steps active for the pwm control
-	uint16_t steps_active = duty_cycle * COUNTER_PERIOD;
+	uint16_t steps_active = 3200 + 3200 * (pot_input/MAX_ADC) ;
 
 	// Set the pwm output to the motor
 	__HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_1, steps_active);
