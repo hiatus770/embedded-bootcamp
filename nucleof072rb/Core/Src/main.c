@@ -105,7 +105,10 @@ int main(void)
   uint8_t rx_buff[3] = {0, 0, 0};
 
   HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1);
+  
+  uint16_t steps_active = 3200; 
   __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_1, steps_active); 
+
   HAL_GPIO_WritePin(GPIOB, GPIO_PIN_8, GPIO_PIN_SET); 
 
   /* USER CODE END 2 */
@@ -129,7 +132,7 @@ int main(void)
 	uint16_t pot_input = ((rx_buff[1] & 0b11) << 8) | (rx_buff[2]);
 
 	// Calculate the steps active for the pwm control
-	uint16_t steps_active = 3200 + 3200 * (pot_input/MAX_ADC) ;
+	steps_active = 3200 + 3200 * (pot_input/MAX_ADC) ;
 
 	// Set the pwm output to the motor
 	__HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_1, steps_active);
